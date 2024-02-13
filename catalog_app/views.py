@@ -92,3 +92,38 @@ def transfer(request):
     }]
     qs_json = json.dumps(list[0])
     return HttpResponse(qs_json, content_type='application/json')
+
+
+
+def register_account(request):
+    account_name = request.GET.get('account_name')
+    account_type = request.GET.get('account_type')
+    remarks = request.GET.get('remarks')
+
+    new_account = Account()
+
+    # Auto Increment
+    last_account = Account()
+
+    for x in Account.objects.order_by('account_id'):
+        last_account = x
+
+
+    account_num = int(last_account.account_id.replace('MSME',''))
+    account_num += 1
+    new_account.account_id = 'MSME' + f"{account_num:07d}"
+    new_account.account_name = account_name
+    new_account.account_type = account_type
+    new_account.remarks = remarks
+
+    new_account.save()
+
+    list = [{
+                'account_id': new_account.account_id,
+                'account_name': new_account.account_name,
+                'account_type': new_account.account_type,
+                'remarks': new_account.remarks,
+                'result': 'Success',
+    }]
+    qs_json = json.dumps(list[0])
+    return HttpResponse(qs_json, content_type='application/json')
