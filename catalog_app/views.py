@@ -79,19 +79,40 @@ def transfer(request):
     new_transfer.amount = float(amount)
     new_transfer.remark = remark
 
+    allowed = False
+    if remark == 'Initial' and from_account == 'MSME0000001':  # Initial
+        allowed = True
+    elif remark == 'Deposit' and to_account == 'MSME0000002':  # Deposit
+        allowed = True
+    elif remark in ['Purchase', 'Withdraw']:  # Purchase
+        # Check To_Account's Balance
+        to_balance = account_balance(to_account)
+        if to_balance >= float(amount):
+            allowed = True
+        else:
+            allowed = False
 
-    new_transfer.save()
+    if allowed:
+        new_transfer.save()
 
-    list = [{
-            'transfer_id': new_transfer.transfer_id,
-            'from_account' : new_transfer.account_from,
-            'to_account' : new_transfer.account_to,
-            'amount' : str(new_transfer.amount),
-            'remark' : new_transfer.remark,
-            'result': 'Success',
-    }]
-    qs_json = json.dumps(list[0])
-    return HttpResponse(qs_json, content_type='application/json')
+        list = [{
+                'transfer_id': new_transfer.transfer_id,
+                'from_account' : new_transfer.account_from,
+                'to_account' : new_transfer.account_to,
+                'amount' : str(new_transfer.amount),
+                'remark' : new_transfer.remark,
+                'result': 'Success',
+        }]
+        qs_json = json.dumps(list[0])
+        return HttpResponse(qs_json, content_type='application/json')
+    else:
+        list = [{
+
+            'remark': 'Transaction is not allowed',
+            'result': 'Failure',
+        }]
+        qs_json = json.dumps(list[0])
+        return HttpResponse(qs_json, content_type='application/json')
 
 
 
@@ -127,3 +148,45 @@ def register_account(request):
     }]
     qs_json = json.dumps(list[0])
     return HttpResponse(qs_json, content_type='application/json')
+
+
+def account_balance(account_id):
+    this_account = Account()
+
+    for x in Account.objects.filter(account_id=account_id).filter(void=0):
+        this_account = x
+
+    debit_amount = 0
+    for x in Transfer.objects.filter(account_to=account_id).filter(void=0):
+        debit_amount += x.amount
+
+    credit_amount = 0
+    for x in Transfer.objects.filter(account_from=account_id).filter(void=0):
+        credit_amount += x.amount
+
+    if this_account.account_type == 'Asset':
+        return debit_amount - credit_amount
+    else:
+        return credit_amount - debit_amount
+
+
+
+def check_balance(request):
+    account_id = request.GET.get('account_id')
+    this_account = Account()
+
+    balance = account_balance(account_id)
+
+    for x in Account.objects.filter(account_id=account_id).filter(void=0):
+        this_account = x
+
+    list = [{
+        'account_id': this_account.account_id,
+        'account_name': this_account.account_name,
+        'account_type': this_account.account_type,
+        'balance': "{:.2f}".format(balance) + ' Baht',
+    }]
+    qs_json = json.dumps(list[0])
+    return HttpResponse(qs_json, content_type='application/json')
+
+
