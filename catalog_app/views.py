@@ -3,6 +3,8 @@ from .models import Product, Account, Transfer
 from django.http import HttpResponseRedirect, HttpResponse
 import json
 
+from django.db.models import Q
+
 # Create your views here.
 def homepage(request):
     context = {
@@ -189,4 +191,28 @@ def check_balance(request):
     qs_json = json.dumps(list[0])
     return HttpResponse(qs_json, content_type='application/json')
 
+def transfer_list(request):
+    account_id = request.GET.get('account_id','None') #Polymorphism version Django request
 
+    if account_id == 'None':
+        list = [{'id': x.transfer_id, 'to': x.account_to, 'from': x.account_from, 'amount': str(x.amount), 'remark': x.remark,
+                 'datetime':str(x.created_time),
+                 }
+                for x in Transfer.objects.filter(void=0).order_by('-created_time')]
+        # qs_json = serializers.serialize('json', list)
+        qs_json = json.dumps(list)
+        return HttpResponse(qs_json, content_type='application/json')
+    else:
+        # Need to import Q
+        # Check Both 'to' and 'from'
+        list = [{'id': x.transfer_id, 'to': x.account_to, 'from': x.account_from, 'amount': str(x.amount),
+                 'remark': x.remark,
+                 'datetime': str(x.created_time),
+                 }
+                for x in Transfer.objects.filter(void=0)
+                    .filter( Q(account_to=account_id) | Q(account_from=account_id)).order_by('-created_time')
+
+                ]
+        # qs_json = serializers.serialize('json', list)
+        qs_json = json.dumps(list)
+        return HttpResponse(qs_json, content_type='application/json')
